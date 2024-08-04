@@ -4,13 +4,13 @@ from typing import Optional, Dict, Any, List, Tuple, Union
 import torch
 import torch.distributed as dist
 import math
-from rigl_torch.utils.rigl_utils import (
+from src.rigl_torch.utils.rigl_utils import (
     get_fan_in_tensor,
     get_fan_in_after_ablation,
     calculate_fan_in_and_fan_out,
 )
-from rigl_torch.rigl_scheduler import RigLScheduler
-from rigl_torch.exceptions import (
+from src.rigl_torch.rigl_scheduler import RigLScheduler
+from src.rigl_torch.exceptions import (
     ConstantFanInException,
     InvalidAblatedNeuronException,
 )

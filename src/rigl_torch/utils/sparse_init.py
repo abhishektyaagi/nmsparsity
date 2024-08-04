@@ -3,7 +3,7 @@ import logging
 import math
 from typing import Optional, Dict, Callable
 
-from rigl_torch.utils.rigl_utils import get_fan_in_tensor
+from src.rigl_torch.utils.rigl_utils import get_fan_in_tensor
 
 
 def sparse_kaiming_normal(

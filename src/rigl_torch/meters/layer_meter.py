@@ -3,7 +3,7 @@ import torch
 import wandb
 from typing import List
 
-from rigl_torch.utils.rigl_utils import calculate_fan_in_and_fan_out
+from src.rigl_torch.utils.rigl_utils import calculate_fan_in_and_fan_out
 
 
 class LayerMeter(object):

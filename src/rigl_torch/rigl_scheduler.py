@@ -8,12 +8,12 @@ from typing import List, Optional, Dict, Any, Union
 import logging
 import wandb
 
-from rigl_torch.utils.rigl_utils import (
+from src.rigl_torch.utils.rigl_utils import (
     get_W,
     get_static_filters_to_ablate,
 )
-from rigl_torch.utils.sparse_init import sparse_init
-from rigl_torch.meters.layer_meter import LayerMeter
+from src.rigl_torch.utils.sparse_init import sparse_init
+from src.rigl_torch.meters.layer_meter import LayerMeter
 
 
 class IndexMaskHook:
@@ -52,7 +52,7 @@ class IndexMaskHook:
         Returns:
             torch.Tensor: grad mutliplied element-wise with sparsity mask.
         """
-        mask = self.scheduler.backward_masks[self.layer_idx]
+        mask = self.scheduler.backward_masks[self.layer_idx].to(grad.device)
 
         # only calculate dense_grads when necessary
         if self.scheduler.check_if_backward_hook_should_accumulate_grad():
@@ -699,7 +699,7 @@ class RigLScheduler:
             self._max_inactive_weights.append(
                 torch.abs(w[mask == False]).max().item()  # noqa: E712
             )
-            w *= mask
+            w *= mask.to(w.device)
 
     @torch.no_grad()
     def apply_mask_to_gradients(self) -> None:
@@ -712,7 +712,7 @@ class RigLScheduler:
             if s <= 0:
                 continue
 
-            w.grad *= mask
+            w.grad *= mask.to(w.device)
 
     def check_if_backward_hook_should_accumulate_grad(self) -> bool:
         """Checks if backwards hooks should accumulate gradient.
@@ -858,7 +858,8 @@ class RigLScheduler:
                         device=weight_tensor.device,
                     )
                 )
-        for mask_idx in list(range(len(self.explored_params))):
+        
+        for mask_idx in range(len(self.explored_params)):
             this_mask = self.backward_masks[mask_idx]
             if this_mask is None:
                 this_mask = torch.ones(
@@ -866,11 +867,16 @@ class RigLScheduler:
                     dtype=torch.bool,
                     device=self.W[0].device,
                 )
-            self.explored_params[mask_idx] += this_mask
+            else:
+                this_mask = this_mask.to(self.W[0].device)
+            
+            self.explored_params[mask_idx] += this_mask.to(self.explored_params[mask_idx].device)
+        
         for ep in self.explored_params:
             if ep is None:
                 print("found empty ep")
-        self.itop_rs = sum([ep.sum() for ep in self.explored_params]) / sum(
+        
+        self.itop_rs = sum([ep.sum().item() for ep in self.explored_params]) / sum(
             [ep.numel() for ep in self.explored_params]
         )
 
@@ -1011,28 +1017,27 @@ class RigLScheduler:
     ) -> torch.Tensor:
         """Gets new weights for grown connections.
 
-        New weights initalized to 0, otherwise previous weight value retained.
+        New weights initialized to 0, otherwise previous weight value retained.
 
         Args:
             w (torch.nn.parameter.Parameter): Weight matrix for a given layer
             current_mask (torch.Tensor): Current mask from last step for a given
                 layer.
             grow_mask (torch.Tensor): New grow_mask obtained in this rigl step.
-                Where True, weights initalized to zero.
+                Where True, weights initialized to zero.
 
         Returns:
             torch.Tensor: New weight matrix with zeros for newly grown weights.
         """
+        device = w.device
         if self.initialize_grown_weights == 0:
-            grow_tensor = torch.zeros_like(w, dtype=torch.bool)
+            grow_tensor = torch.zeros_like(w, dtype=torch.bool, device=device)
         else:
             grow_tensor = (
-                torch.ones_like(w, dtype=torch.bool)
+                torch.ones_like(w, dtype=torch.bool, device=device)
                 * self.initialize_grown_weights
             )
-        new_connections = ~current_mask & grow_mask.to(
-            device=current_mask.device
-        )
+        new_connections = ~current_mask.to(device) & grow_mask.to(device)
         new_weights = torch.where(
             new_connections,
             grow_tensor,  # init to initialize_grown_weights value
