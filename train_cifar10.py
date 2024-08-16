@@ -64,7 +64,7 @@ args = parser.parse_args()
 usewandb = ~args.nowandb
 if usewandb:
     import wandb
-    watermark = "{}_lr{}_{}".format(args.net, args.lr,args.sparsity)
+    watermark = "nmsparsity_{}_lr{}_{}".format(args.net, args.lr,args.sparsity)
     wandb.init(project="cifar10-challange",
             name=watermark)
     wandb.config.update(args)
@@ -286,7 +286,7 @@ scheduler_kwargs = dict(
     T_end = int(len(trainloader)*args.n_epochs*0.75),   # optim step number at which to stop mask mutation, 75% is what we used. 
     # Will need to adjust for distributed training or grad accumulation, see https://github.com/calgaryml/condensed-sparsity/blob/main/src/rigl_torch/utils/rigl_utils.py#L239 for an example of how this can be calculated for more complex training runs. 
     dynamic_ablation = True , # ablate low saliency neurons
-    min_salient_weights_per_neuron = 0.3,  # 30% of sparse weights must be salient or else neuron is pruned
+    min_salient_weights_per_neuron = 0.1,  # 30% of sparse weights must be salient or else neuron is pruned
     no_ablation_module_names = list(net.named_modules())[-1][0],  # Important to not ablate your last layer as this would remove entire classes from consideration. 
 )
 scheduler = RigLConstFanScheduler(net, optimizer, **scheduler_kwargs)
@@ -374,7 +374,6 @@ for epoch in range(start_epoch, args.n_epochs):
     val_loss, acc = test(epoch)
     
     #scheduler.step(epoch-1) # step cosine scheduling
-    scheduler()
     
     list_loss.append(val_loss)
     list_acc.append(acc)
